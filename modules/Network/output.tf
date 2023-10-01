@@ -18,6 +18,6 @@ output "elb_dns_name" {
   value = aws_lb.my_lb.dns_name
 }
 
-output "Private_instance_ip" {
-  value = aws_instance.private_instance.private_ip
+output "EFS_DNS_name" {
+  value = aws_efs_file_system.ninja.dns_name
 }

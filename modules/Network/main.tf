@@ -1,6 +1,7 @@
 
 resource "aws_vpc" "ninja_vpc" {
   cidr_block = "10.0.0.0/22"
+  enable_dns_hostnames = true
   tags = {
     Name = var.vpc_name
   }
@@ -90,6 +91,12 @@ resource "aws_security_group" "private_instance_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  ingress {
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
     egress {
     from_port   = 0
     to_port     = 0
@@ -107,18 +114,6 @@ resource "aws_instance" "bastion" {
 
   tags = {
     Name = "bastion"
-  }
-}
-
-resource "aws_instance" "private_instance" {
-  ami           = var.instance_ami
-  instance_type = var.instance
-  subnet_id     = aws_subnet.private[0].id
-  key_name      = aws_key_pair.example_keypair.key_name
-  security_groups = [aws_security_group.private_instance_sg.id]
-
-  tags = {
-    Name = "private_instance"
   }
 }
 
@@ -191,6 +186,20 @@ resource "aws_security_group" "load_balancer_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+resource "aws_efs_file_system" "ninja" {
+  creation_token = "jenkins-data"
+  encrypted = true 
+  tags = {
+    Name = "jenkins-data"
+  }
+}
+resource "aws_efs_mount_target" "ninja" {
+  count     = 2
+  file_system_id  = aws_efs_file_system.ninja.id
+  subnet_id       = aws_subnet.private[count.index].id
+  security_groups = [aws_security_group.private_instance_sg.id]
+}
+
 resource "aws_lb" "my_lb" {
   name               = "my-load-balancer"
   internal           = false  
@@ -228,15 +237,40 @@ resource "aws_lb_listener_rule" "my_rule" {
       status_code  = "200"
     }
   }
-
   condition {
     path_pattern {
       values = ["/health"]
     }
   }
 }
-resource "aws_lb_target_group_attachment" "private_instance_attachments" {
-  count         = length(aws_instance.private_instance)
-  target_group_arn = aws_lb_target_group.my_target_group.arn
-  target_id     = aws_instance.private_instance.id
+
+resource "aws_launch_template" "jenkins_template" {
+  depends_on = [aws_efs_mount_target.ninja]
+  name_prefix = "Jenkins-"
+  image_id = var.jenkins_ami
+  instance_type = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.private_instance_sg.id]
+  key_name = aws_key_pair.example_keypair.key_name
+  user_data = base64encode(<<EOF
+#!/bin/bash
+sudo apt-get update -y
+sudo apt-get install nfs-common -y
+sudo mount -t nfs -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport ${aws_efs_file_system.ninja.dns_name}:/ /var/lib/jenkins/
+sudo rsync -a /usr/local/jenkins_data/ /var/lib/jenkins/
+sudo systemctl restart jenkins.service
+EOF
+   )
+}
+resource "aws_autoscaling_group" "asg" {
+  depends_on = [ aws_efs_file_system.ninja ]
+  name_prefix                 = "Ninja-"
+  launch_template {
+    id = aws_launch_template.jenkins_template.id
+    version = "$Latest"
+  }
+  min_size                    = 1
+  max_size                    = 1
+  desired_capacity            = 1
+  target_group_arns           = [aws_lb_target_group.my_target_group.arn]
+  vpc_zone_identifier = [aws_subnet.private[0].id, aws_subnet.private[1].id]
 }

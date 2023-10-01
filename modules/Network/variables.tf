@@ -37,3 +37,9 @@ variable "igw_name" {
   type        = string
   default     = "ninja-igw-01"
 }
+
+variable "jenkins_ami" {
+  description = "AMI ID for instances"
+  type        = string
+  default     = "ami-05af76c8c50d3818f"
+}
