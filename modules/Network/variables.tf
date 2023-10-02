@@ -41,5 +41,5 @@ variable "igw_name" {
 variable "jenkins_ami" {
   description = "AMI ID for instances"
   type        = string
-  default     = "ami-05af76c8c50d3818f"
+  default     = "ami-0416cd22acdebee74"
 }
