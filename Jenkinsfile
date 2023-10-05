@@ -21,13 +21,14 @@ pipeline {
                         terraform apply -input=false tfplan
                     """
                     script {
-                        def publicip = sh(script: 'terraform output Public_instance_ip | xargs', returnStdout: true).trim()
-                        def Jenkins_URL = sh(script: 'terraform output elb_dns_name', returnStdout: true).trim()
+                        def publicip = sh(script: 'terraform output Public_instance_ip | xargs').trim()
+                        def Jenkins_URL = sh(script: 'terraform output elb_dns_name').trim()
                         env.remote_host = publicip
                         env.Your_Jenkins_URL = Jenkins_URL
                     }
                     script {
                         printf "Your_Jenkins_URL: %s", env.Your_Jenkins_URL
+                        printf "Your Bastion instance ip: %s", env.remote_host
                     }
                 }
             }
