@@ -15,9 +15,5 @@ output "instance_public_ip" {
 }
 
 output "elb_dns_name" {
-  value = aws_lb.my_lb.dns_name
-}
-
-output "EFS_DNS_name" {
-  value = aws_efs_file_system.ninja.dns_name
+  value = aws_lb.my_lb02.dns_name
 }

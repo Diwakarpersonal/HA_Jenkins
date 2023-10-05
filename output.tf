@@ -5,7 +5,3 @@ output "Public_instance_ip" {
 output "elb_dns_name" {
   value = module.Assignment.elb_dns_name
 }
-
-output "EFS_DNS_name" {
-  value = module.Assignment.EFS_DNS_name
-}
