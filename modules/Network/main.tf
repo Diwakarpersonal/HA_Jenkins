@@ -189,6 +189,9 @@ resource "aws_security_group" "load_balancer_sg" {
 resource "aws_efs_file_system" "ninja" {
   creation_token = "jenkins-data"
   encrypted = true 
+  backup_policy {
+    status = "ENABLED"
+  }
   tags = {
     Name = "jenkins-data"
   }
